@@ -1,0 +1,30 @@
+{
+  "posts": [
+
+    {
+      "file": "posts/2026-01-28-distributed-transaction.md",
+      "slug": "distributed-transaction"
+    },
+
+    {
+      "file": "posts/2026-02-05-java-21-features.md",
+      "slug": "java-21-features"
+    },
+
+    {
+      "file": "posts/2026-02-09-architect-mindset.md",
+      "slug": "architect-mindset"
+    },
+
+    {
+      "file": "posts/2026-02-10-opencode-mac-setup.md",
+      "slug": "opencode-mac-setup"
+    },
+
+    {
+      "file": "posts/2026-02-10-building-blog-with-opencode.md",
+      "slug": "building-blog-with-opencode"
+    }
+
+  ]
+}
