@@ -412,6 +412,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     initHeatmap();
     renderPosts();
     initFilters();
+    initSearch();
 });
 
 // Load posts from markdown files
@@ -824,4 +825,171 @@ function getCategoryName(category) {
         'uncategorized': '未分类'
     };
     return names[category] || category;
+}
+
+// Search functionality
+function initSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    
+    if (!searchInput || !searchResults) return;
+    
+    let searchTimeout;
+    
+    // Search on input with debounce
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length === 0) {
+            hideSearchResults();
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+    
+    // Search on button click
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function() {
+            const query = searchInput.value.trim();
+            if (query.length > 0) {
+                performSearch(query);
+            }
+        });
+    }
+    
+    // Search on Enter key
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const query = this.value.trim();
+            if (query.length > 0) {
+                performSearch(query);
+            }
+        }
+    });
+    
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.header-search')) {
+            hideSearchResults();
+        }
+    });
+    
+    // Focus on search input when clicking inside search box
+    searchInput.addEventListener('focus', function() {
+        if (this.value.trim().length > 0) {
+            performSearch(this.value.trim());
+        }
+    });
+}
+
+// Perform search
+function performSearch(query) {
+    const searchResults = document.getElementById('searchResults');
+    
+    if (!query || blogPosts.length === 0) {
+        hideSearchResults();
+        return;
+    }
+    
+    const lowerQuery = query.toLowerCase();
+    
+    // Search through all posts
+    const results = blogPosts.filter(post => {
+        const searchText = [
+            post.title,
+            post.excerpt,
+            post.content,
+            ...(Array.isArray(post.tags) ? post.tags : [post.tags]),
+            getCategoryName(post.category)
+        ].join(' ').toLowerCase();
+        
+        return searchText.includes(lowerQuery);
+    });
+    
+    displaySearchResults(results, query);
+}
+
+// Display search results
+function displaySearchResults(results, query) {
+    const searchResults = document.getElementById('searchResults');
+    
+    if (results.length === 0) {
+        searchResults.innerHTML = `
+            <div class="search-no-results">
+                <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                <p>未找到包含 "${escapeHtml(query)}" 的文章</p>
+            </div>
+        `;
+        searchResults.classList.add('active');
+        return;
+    }
+    
+    let html = '';
+    results.forEach(post => {
+        const highlightedTitle = highlightText(post.title, query);
+        const highlightedExcerpt = highlightText(post.excerpt.substring(0, 100) + '...', query);
+        
+        html += `
+            <div class="search-result-item" onclick="openSearchResult('${post.id}')">
+                <h4>${highlightedTitle}</h4>
+                <p>${highlightedExcerpt}</p>
+                <div class="search-meta">
+                    <span><i class="far fa-calendar"></i> ${formatDate(post.date)}</span>
+                    <span><i class="far fa-folder"></i> ${getCategoryName(post.category)}</span>
+                    ${post.status === 'draft' ? '<span style="color: var(--color-yellow);"><i class="fas fa-pencil-alt"></i> 草稿</span>' : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    searchResults.innerHTML = html;
+    searchResults.classList.add('active');
+}
+
+// Highlight search text
+function highlightText(text, query) {
+    if (!query) return text;
+    const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+    return text.replace(regex, '<span class="search-highlight">$1</span>');
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Escape regex special characters
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Hide search results
+function hideSearchResults() {
+    const searchResults = document.getElementById('searchResults');
+    if (searchResults) {
+        searchResults.classList.remove('active');
+    }
+}
+
+// Open search result
+function openSearchResult(postId) {
+    hideSearchResults();
+    
+    // Switch to home page if not already there
+    const homePage = document.getElementById('home-page');
+    if (!homePage.classList.contains('active')) {
+        document.querySelector('.nav-link[data-page="home"]').click();
+    }
+    
+    // Show post detail
+    setTimeout(() => {
+        showPostDetail(postId);
+    }, 100);
 }
