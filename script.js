@@ -157,11 +157,17 @@ let blogPosts = [];
 let showDrafts = false;
 let currentFilter = 'all';
 
-// View Statistics Manager
+// View Statistics Manager - Now uses Google Analytics with localStorage fallback
 const ViewStats = {
     storageKey: 'blog-view-stats',
+    readingStartTimes: {}, // Track when user starts reading a post
     
-    // Get all view stats from localStorage
+    // Check if Google Analytics is available
+    useAnalytics() {
+        return typeof Analytics !== 'undefined' && Analytics.isAvailable && Analytics.isAvailable();
+    },
+    
+    // Get all view stats from localStorage (fallback when GA not available)
     getAllStats() {
         try {
             const stats = localStorage.getItem(this.storageKey);
@@ -183,16 +189,44 @@ const ViewStats = {
     
     // Get view count for a specific post
     getViewCount(postId) {
+        // If using Analytics, return 0 (we can't get real-time counts from GA)
+        // The display will show a placeholder or "Tracked by GA"
+        if (this.useAnalytics()) {
+            return 0; // GA doesn't provide real-time individual post counts to client
+        }
+        
         const stats = this.getAllStats();
         return stats[postId] || 0;
     },
     
     // Increment view count for a post
-    incrementView(postId) {
+    incrementView(postId, postTitle, category) {
+        // Always track to localStorage as backup
         const stats = this.getAllStats();
         stats[postId] = (stats[postId] || 0) + 1;
         this.saveAllStats(stats);
+        
+        // Track to Google Analytics if available
+        if (this.useAnalytics()) {
+            Analytics.trackPostView(postId, postTitle, category);
+        }
+        
+        // Record reading start time
+        this.readingStartTimes[postId] = Date.now();
+        
         return stats[postId];
+    },
+    
+    // Track when user finishes reading (modal closed)
+    trackReadingComplete(postId) {
+        const startTime = this.readingStartTimes[postId];
+        if (startTime && this.useAnalytics()) {
+            const duration = (Date.now() - startTime) / 1000 / 60; // Convert to minutes
+            if (duration > 0.5) { // Only track if read for more than 30 seconds
+                Analytics.trackReadingTime(postId, duration);
+            }
+            delete this.readingStartTimes[postId];
+        }
     },
     
     // Reset stats (for testing)
@@ -202,6 +236,13 @@ const ViewStats = {
     
     // Get total views across all posts
     getTotalViews() {
+        if (this.useAnalytics()) {
+            // When using GA, we can't get real-time totals
+            // Return the count from localStorage as an approximation
+            const stats = this.getAllStats();
+            return Object.values(stats).reduce((sum, count) => sum + count, 0);
+        }
+        
         const stats = this.getAllStats();
         return Object.values(stats).reduce((sum, count) => sum + count, 0);
     },
@@ -213,6 +254,11 @@ const ViewStats = {
             .sort((a, b) => b[1] - a[1])
             .slice(0, limit)
             .map(([id, count]) => ({ id, count }));
+    },
+    
+    // Check if analytics mode is active
+    isAnalyticsMode() {
+        return this.useAnalytics();
     }
 };
 
@@ -479,6 +525,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (typeof i18n !== 'undefined') {
         i18n.init();
     }
+    
+    // Initialize Google Analytics
+    if (typeof Analytics !== 'undefined') {
+        Analytics.init();
+    }
 });
 
 // Load posts from markdown files
@@ -643,8 +694,8 @@ function showPostDetail(postId) {
     const post = blogPosts.find(p => p.id === postId);
     if (!post) return;
     
-    // Increment view count
-    const newViewCount = ViewStats.incrementView(postId);
+    // Increment view count with full post info for Analytics
+    const newViewCount = ViewStats.incrementView(postId, post.title, post.category);
     
     // Update view count display in the list if visible
     updatePostCardViewCount(postId, newViewCount);
@@ -659,13 +710,21 @@ function showPostDetail(postId) {
         i18n.t('reading_time', { time: readingTime }) : 
         `${readingTime} 分钟阅读`;
     
+    // Determine what to show for view count
+    let viewCountDisplay;
+    if (ViewStats.isAnalyticsMode()) {
+        viewCountDisplay = '<i class="fas fa-chart-line"></i> Tracked by GA';
+    } else {
+        viewCountDisplay = `<i class="far fa-eye"></i> ${newViewCount} 次阅读`;
+    }
+    
     content.innerHTML = `
         <div class="post-detail">
             <h1>${post.title}</h1>
             <div class="post-meta">
                 <span><i class="far fa-calendar"></i> ${formatDate(post.date)}</span>
                 <span><i class="far fa-folder"></i> ${getCategoryName(post.category)}</span>
-                <span><i class="far fa-eye"></i> ${newViewCount} 次阅读</span>
+                <span>${viewCountDisplay}</span>
                 <span><i class="far fa-clock"></i> ${readingTimeText}</span>
                 ${post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : ''}
             </div>
@@ -679,6 +738,9 @@ function showPostDetail(postId) {
     `;
     
     modal.style.display = 'block';
+    
+    // Store current post ID for tracking when modal closes
+    modal.dataset.currentPostId = postId;
 }
 
 // Update view count display on post card
@@ -706,6 +768,12 @@ function calculateReadingTime(content) {
 document.addEventListener('click', function(e) {
     const modal = document.getElementById('postModal');
     if (e.target === modal || e.target.classList.contains('modal-close')) {
+        // Track reading completion before closing
+        const postId = modal.dataset.currentPostId;
+        if (postId) {
+            ViewStats.trackReadingComplete(postId);
+            delete modal.dataset.currentPostId;
+        }
         modal.style.display = 'none';
     }
 });
@@ -742,6 +810,19 @@ function initPageNavigation() {
             e.preventDefault();
             
             const pageId = this.getAttribute('data-page');
+            
+            // Track page view in Analytics
+            if (typeof Analytics !== 'undefined' && Analytics.trackPageView) {
+                const pageTitles = {
+                    'home': 'Home - 代码之韵',
+                    'articles': 'All Articles - 代码之韵',
+                    'architecture': 'Architecture - 代码之韵',
+                    'projects': 'Projects - 代码之韵',
+                    'about': 'About - 代码之韵',
+                    'contact': 'Contact - 代码之韵'
+                };
+                Analytics.trackPageView(pageId, pageTitles[pageId] || pageId);
+            }
             
             navLinks.forEach(navLink => navLink.classList.remove('active'));
             this.classList.add('active');
@@ -783,6 +864,12 @@ function initSidebarFilters() {
         filter.addEventListener('click', function(e) {
             e.preventDefault();
             const category = this.getAttribute('data-category');
+            
+            // Track category filter in Analytics
+            if (typeof Analytics !== 'undefined' && Analytics.trackCategoryFilter) {
+                Analytics.trackCategoryFilter(category);
+            }
+            
             document.querySelector('.nav-link[data-page="home"]').click();
             
             currentFilter = category;
@@ -819,6 +906,12 @@ function initContactForm() {
                 message: document.getElementById('message').value
             };
             console.log('Form submitted:', formData);
+            
+            // Track form submission in Analytics
+            if (typeof Analytics !== 'undefined' && Analytics.trackContactSubmit) {
+                Analytics.trackContactSubmit(true);
+            }
+            
             const successMsg = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('message_sent') : '消息已发送！我会尽快回复您。';
             alert(successMsg);
             contactForm.reset();
@@ -1054,6 +1147,12 @@ function initLanguageSwitcher() {
         option.addEventListener('click', function(e) {
             e.preventDefault();
             const lang = this.getAttribute('data-lang');
+            const currentLang = (typeof i18n !== 'undefined' && i18n.currentLang) ? i18n.currentLang : 'zh';
+            
+            // Track language switch in Analytics
+            if (typeof Analytics !== 'undefined' && Analytics.trackLanguageSwitch) {
+                Analytics.trackLanguageSwitch(currentLang, lang);
+            }
             
             if (typeof i18n !== 'undefined' && i18n.setLanguage) {
                 i18n.setLanguage(lang);
@@ -1161,6 +1260,11 @@ function performSearch(query) {
         
         return searchText.includes(lowerQuery);
     });
+    
+    // Track search in Analytics
+    if (typeof Analytics !== 'undefined' && Analytics.trackSearch) {
+        Analytics.trackSearch(query, results.length);
+    }
     
     displaySearchResults(results, query);
 }

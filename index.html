@@ -6,6 +6,20 @@
     <title>代码之韵 - 程序员博客</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Analytics 4 - Replace GA_MEASUREMENT_ID with your actual ID -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID', {
+            'send_page_view': false, // We'll handle page views manually for SPAs
+            'anonymize_ip': true,
+            'allow_google_signals': false,
+            'allow_ad_personalization_signals': false
+        });
+    </script>
 </head>
 <body>
     <!-- 头部导航 -->
@@ -516,6 +530,7 @@
     </div>
 
     <script src="i18n.js"></script>
+    <script src="analytics.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
