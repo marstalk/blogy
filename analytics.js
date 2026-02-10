@@ -5,7 +5,7 @@
 
 const Analytics = {
     // GA Measurement ID - Update this with your actual ID
-    measurementId: 'GA_MEASUREMENT_ID',
+    measurementId: 'G-FJBKJ8ZPVT',
     
     // Check if GA is loaded
     isAvailable() {
