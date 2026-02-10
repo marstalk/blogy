@@ -157,6 +157,65 @@ let blogPosts = [];
 let showDrafts = false;
 let currentFilter = 'all';
 
+// View Statistics Manager
+const ViewStats = {
+    storageKey: 'blog-view-stats',
+    
+    // Get all view stats from localStorage
+    getAllStats() {
+        try {
+            const stats = localStorage.getItem(this.storageKey);
+            return stats ? JSON.parse(stats) : {};
+        } catch (e) {
+            console.error('Error loading view stats:', e);
+            return {};
+        }
+    },
+    
+    // Save all view stats to localStorage
+    saveAllStats(stats) {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(stats));
+        } catch (e) {
+            console.error('Error saving view stats:', e);
+        }
+    },
+    
+    // Get view count for a specific post
+    getViewCount(postId) {
+        const stats = this.getAllStats();
+        return stats[postId] || 0;
+    },
+    
+    // Increment view count for a post
+    incrementView(postId) {
+        const stats = this.getAllStats();
+        stats[postId] = (stats[postId] || 0) + 1;
+        this.saveAllStats(stats);
+        return stats[postId];
+    },
+    
+    // Reset stats (for testing)
+    resetStats() {
+        localStorage.removeItem(this.storageKey);
+    },
+    
+    // Get total views across all posts
+    getTotalViews() {
+        const stats = this.getAllStats();
+        return Object.values(stats).reduce((sum, count) => sum + count, 0);
+    },
+    
+    // Get top viewed posts
+    getTopPosts(limit = 5) {
+        const stats = this.getAllStats();
+        return Object.entries(stats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit)
+            .map(([id, count]) => ({ id, count }));
+    }
+};
+
 // Fallback posts data (used when fetch fails due to CORS on local file://)
 const fallbackPosts = [
     {
@@ -414,6 +473,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     initFilters();
     initSearch();
     initLanguageSwitcher();
+    initStats();
     
     // Initialize i18n after everything is loaded
     if (typeof i18n !== 'undefined') {
@@ -506,6 +566,9 @@ function renderPosts() {
         const card = createPostCard(post);
         container.appendChild(card);
     });
+    
+    // Update stats after rendering posts
+    updateStats();
 }
 
 // Create post card element
@@ -520,12 +583,21 @@ function createPostCard(post) {
     const readMoreText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('read_more') : '阅读全文';
     const draftBadge = post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : '';
     
+    // Get view count
+    const viewCount = ViewStats.getViewCount(post.id);
+    const viewCountText = formatViewCount(viewCount);
+    
     article.innerHTML = `
         <div class="article-image ${post.image}"></div>
         <div class="article-content">
             <div class="article-meta">
                 <div class="article-date">
                     <i class="far fa-calendar"></i> ${dateStr}
+                </div>
+                <div class="article-stats">
+                    <span class="view-count" title="阅读次数">
+                        <i class="far fa-eye"></i> ${viewCountText}
+                    </span>
                 </div>
                 <div class="article-tags">
                     ${post.tags.map(tag => `<span class="tag tag-${post.category}">${tag}</span>`).join('')}
@@ -539,6 +611,16 @@ function createPostCard(post) {
     `;
     
     return article;
+}
+
+// Format view count (e.g., 1200 -> 1.2k)
+function formatViewCount(count) {
+    if (count >= 1000000) {
+        return (count / 1000000).toFixed(1) + 'M';
+    } else if (count >= 1000) {
+        return (count / 1000).toFixed(1) + 'k';
+    }
+    return count.toString();
 }
 
 // Format date
@@ -561,9 +643,21 @@ function showPostDetail(postId) {
     const post = blogPosts.find(p => p.id === postId);
     if (!post) return;
     
+    // Increment view count
+    const newViewCount = ViewStats.incrementView(postId);
+    
+    // Update view count display in the list if visible
+    updatePostCardViewCount(postId, newViewCount);
+    
     const modal = document.getElementById('postModal');
     const content = document.getElementById('postModalContent');
     const draftLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('search_draft') : '草稿';
+    
+    // Get reading time
+    const readingTime = calculateReadingTime(post.content);
+    const readingTimeText = typeof i18n !== 'undefined' && i18n.t ? 
+        i18n.t('reading_time', { time: readingTime }) : 
+        `${readingTime} 分钟阅读`;
     
     content.innerHTML = `
         <div class="post-detail">
@@ -571,6 +665,8 @@ function showPostDetail(postId) {
             <div class="post-meta">
                 <span><i class="far fa-calendar"></i> ${formatDate(post.date)}</span>
                 <span><i class="far fa-folder"></i> ${getCategoryName(post.category)}</span>
+                <span><i class="far fa-eye"></i> ${newViewCount} 次阅读</span>
+                <span><i class="far fa-clock"></i> ${readingTimeText}</span>
                 ${post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : ''}
             </div>
             <div class="post-tags">
@@ -583,6 +679,27 @@ function showPostDetail(postId) {
     `;
     
     modal.style.display = 'block';
+}
+
+// Update view count display on post card
+function updatePostCardViewCount(postId, count) {
+    const postCard = document.querySelector(`.article-card[data-id="${postId}"]`);
+    if (postCard) {
+        const viewCountEl = postCard.querySelector('.view-count');
+        if (viewCountEl) {
+            viewCountEl.innerHTML = `<i class="far fa-eye"></i> ${formatViewCount(count)}`;
+        }
+    }
+}
+
+// Calculate reading time (average 200 words per minute)
+function calculateReadingTime(content) {
+    if (!content) return 1;
+    // Remove markdown syntax and count words
+    const text = content.replace(/[#*_`\[\]\(\)\-]/g, ' ');
+    const words = text.trim().split(/\s+/).length;
+    const minutes = Math.ceil(words / 200);
+    return Math.max(1, minutes);
 }
 
 // Close modal
@@ -860,6 +977,62 @@ function getCategoryName(category) {
         'uncategorized': '未分类'
     };
     return names[category] || category;
+}
+
+// Initialize and update statistics
+function initStats() {
+    updateStats();
+}
+
+function updateStats() {
+    // Update total views
+    const totalViews = ViewStats.getTotalViews();
+    const totalViewsEl = document.getElementById('totalViews');
+    if (totalViewsEl) {
+        totalViewsEl.textContent = formatViewCount(totalViews);
+    }
+    
+    // Update total articles
+    const totalArticlesEl = document.getElementById('totalArticles');
+    if (totalArticlesEl) {
+        totalArticlesEl.textContent = blogPosts.length;
+    }
+    
+    // Update popular posts
+    renderPopularPosts();
+}
+
+function renderPopularPosts() {
+    const container = document.getElementById('popularPostsList');
+    if (!container) return;
+    
+    const topPosts = ViewStats.getTopPosts(5);
+    
+    if (topPosts.length === 0) {
+        container.innerHTML = '<li style="text-align: center; color: #999; padding: 1rem;">暂无数据</li>';
+        return;
+    }
+    
+    let html = '';
+    topPosts.forEach((postStat, index) => {
+        const post = blogPosts.find(p => p.id === postStat.id);
+        if (post) {
+            const rankClass = index < 3 ? `top-${index + 1}` : '';
+            html += `
+                <li onclick="showPostDetail('${post.id}')">
+                    <div class="popular-rank ${rankClass}">${index + 1}</div>
+                    <div class="popular-content">
+                        <h4>${post.title}</h4>
+                        <span class="view-count-small">
+                            <i class="far fa-eye"></i> ${formatViewCount(postStat.count)}
+                        </span>
+                    </div>
+                </li>
+            `;
+        }
+    });
+    
+    container.innerHTML = html;
 }
 
 // Initialize language switcher

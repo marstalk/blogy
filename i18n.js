@@ -451,6 +451,28 @@ const i18n = {
             en: 'We have categorized articles by technical domain to help you quickly find content of interest.'
         },
         
+        // Statistics
+        'stats_title': {
+            zh: '阅读统计',
+            en: 'Reading Stats'
+        },
+        'total_views': {
+            zh: '总阅读',
+            en: 'Total Views'
+        },
+        'total_articles': {
+            zh: '篇文章',
+            en: 'Articles'
+        },
+        'popular_posts': {
+            zh: '热门文章',
+            en: 'Popular Posts'
+        },
+        'reading_time': {
+            zh: '{time} 分钟阅读',
+            en: '{time} min read'
+        },
+        
         // Footer
         'about_site': {
             zh: '关于本站',

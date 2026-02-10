@@ -489,6 +489,161 @@ nav ul li a.active::after {
     margin-bottom: 1rem;
     flex-wrap: wrap;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.article-stats {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.view-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-cyan);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.view-count i {
+    font-size: 0.9rem;
+}
+
+/* Statistics Section */
+.stats-overview {
+    display: flex;
+    justify-content: space-around;
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--color-blue);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--color-gray);
+}
+
+.popular-posts-title {
+    font-size: 0.95rem;
+    color: var(--color-dark-gray);
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+}
+
+.popular-posts {
+    list-style: none;
+}
+
+.popular-posts li {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.popular-posts li:last-child {
+    border-bottom: none;
+}
+
+.popular-posts li:hover {
+    background-color: #f8f9fa;
+    margin: 0 -0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    border-radius: 4px;
+}
+
+.popular-rank {
+    width: 24px;
+    height: 24px;
+    background: var(--color-gray);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.popular-rank.top-1 {
+    background: #FFD700;
+    color: var(--color-black);
+}
+
+.popular-rank.top-2 {
+    background: #C0C0C0;
+    color: var(--color-black);
+}
+
+.popular-rank.top-3 {
+    background: #CD7F32;
+    color: white;
+}
+
+.popular-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.popular-content h4 {
+    font-size: 0.9rem;
+    color: var(--color-dark-gray);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.popular-content .view-count-small {
+    font-size: 0.8rem;
+    color: var(--color-cyan);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Post Detail Stats */
+.post-stats-bar {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    margin: 1rem 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+}
+
+.post-stat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-gray);
+    font-size: 0.9rem;
+}
+
+.post-stat-item i {
+    color: var(--color-cyan);
 }
 
 .article-tags {
