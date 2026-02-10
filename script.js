@@ -413,6 +413,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderPosts();
     initFilters();
     initSearch();
+    initLanguageSwitcher();
+    
+    // Initialize i18n after everything is loaded
+    if (typeof i18n !== 'undefined') {
+        i18n.init();
+    }
 });
 
 // Load posts from markdown files
@@ -491,7 +497,8 @@ function renderPosts() {
     });
     
     if (filteredPosts.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">暂无文章</p>';
+        const noArticlesText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('no_articles') : '暂无文章';
+        container.innerHTML = `<p style="text-align: center; color: #999; padding: 2rem;">${noArticlesText}</p>`;
         return;
     }
     
@@ -509,7 +516,9 @@ function createPostCard(post) {
     article.setAttribute('data-id', post.id);
     
     const dateStr = formatDate(post.date);
-    const draftBadge = post.status === 'draft' ? '<span class="draft-badge">草稿</span>' : '';
+    const draftLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('search_draft') : '草稿';
+    const readMoreText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('read_more') : '阅读全文';
+    const draftBadge = post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : '';
     
     article.innerHTML = `
         <div class="article-image ${post.image}"></div>
@@ -525,7 +534,7 @@ function createPostCard(post) {
             </div>
             <h3>${post.title}</h3>
             <p>${post.excerpt}</p>
-            <a href="#" class="read-more" onclick="showPostDetail('${post.id}'); return false;">阅读全文 <i class="fas fa-arrow-right"></i></a>
+            <a href="#" class="read-more" onclick="showPostDetail('${post.id}'); return false;">${readMoreText} <i class="fas fa-arrow-right"></i></a>
         </div>
     `;
     
@@ -535,7 +544,16 @@ function createPostCard(post) {
 // Format date
 function formatDate(dateStr) {
     const date = new Date(dateStr);
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    
+    // Use i18n format if available
+    if (typeof i18n !== 'undefined' && i18n.formatDate) {
+        return i18n.formatDate(dateStr);
+    }
+    
+    return `${year}年${month}月${day}日`;
 }
 
 // Show post detail in modal
@@ -545,6 +563,7 @@ function showPostDetail(postId) {
     
     const modal = document.getElementById('postModal');
     const content = document.getElementById('postModalContent');
+    const draftLabel = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('search_draft') : '草稿';
     
     content.innerHTML = `
         <div class="post-detail">
@@ -552,7 +571,7 @@ function showPostDetail(postId) {
             <div class="post-meta">
                 <span><i class="far fa-calendar"></i> ${formatDate(post.date)}</span>
                 <span><i class="far fa-folder"></i> ${getCategoryName(post.category)}</span>
-                ${post.status === 'draft' ? '<span class="draft-badge">草稿</span>' : ''}
+                ${post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : ''}
             </div>
             <div class="post-tags">
                 ${post.tags.map(tag => `<span class="tag tag-${post.category}">${tag}</span>`).join('')}
@@ -683,7 +702,8 @@ function initContactForm() {
                 message: document.getElementById('message').value
             };
             console.log('Form submitted:', formData);
-            alert('消息已发送！我会尽快回复您。');
+            const successMsg = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('message_sent') : '消息已发送！我会尽快回复您。';
+            alert(successMsg);
             contactForm.reset();
         });
     }
@@ -746,14 +766,17 @@ function initHeatmap() {
     }
     
     html += '</div>';
+    const lessText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('heatmap_less') : '少';
+    const moreText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('heatmap_more') : '多';
+    
     html += '<div class="heatmap-footer">';
-    html += '<span>少</span>';
+    html += `<span>${lessText}</span>`;
     html += '<div class="heatmap-cell level-0"></div>';
     html += '<div class="heatmap-cell level-1"></div>';
     html += '<div class="heatmap-cell level-2"></div>';
     html += '<div class="heatmap-cell level-3"></div>';
     html += '<div class="heatmap-cell level-4"></div>';
-    html += '<span>多</span>';
+    html += `<span>${moreText}</span>`;
     html += '</div>';
     html += '</div>';
     
@@ -794,10 +817,17 @@ function renderAllArticles() {
     
     Object.keys(grouped).forEach(category => {
         const posts = grouped[category];
+        const articlesCountText = (typeof i18n !== 'undefined' && i18n.t) ? 
+            i18n.t('articles_count', { count: posts.length }) : 
+            `${posts.length}篇文章`;
+        const viewAllText = (typeof i18n !== 'undefined' && i18n.t) ? 
+            i18n.t('view_all_articles', { count: posts.length }) : 
+            `查看全部${posts.length}篇文章`;
+        
         const categoryHtml = `
             <div class="category-item" style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; margin-bottom: 1rem;">
                 <h3>${getCategoryName(category)}</h3>
-                <p>${posts.length}篇文章</p>
+                <p>${articlesCountText}</p>
                 <div style="margin-top: 1rem;">
                     ${posts.slice(0, 3).map(post => `
                         <div style="padding: 0.5rem 0; border-bottom: 1px solid #ddd;">
@@ -806,7 +836,7 @@ function renderAllArticles() {
                         </div>
                     `).join('')}
                 </div>
-                ${posts.length > 3 ? `<a href="#" class="btn" style="margin-top: 1rem;" onclick="document.querySelector('.nav-link[data-page=home]').click(); return false;">查看全部${posts.length}篇文章</a>` : ''}
+                ${posts.length > 3 ? `<a href="#" class="btn" style="margin-top: 1rem;" onclick="document.querySelector('.nav-link[data-page=home]').click(); return false;">${viewAllText}</a>` : ''}
             </div>
         `;
         container.innerHTML += categoryHtml;
@@ -815,6 +845,11 @@ function renderAllArticles() {
 
 // Get category display name
 function getCategoryName(category) {
+    // Use i18n if available
+    if (typeof i18n !== 'undefined' && i18n.getCategoryName) {
+        return i18n.getCategoryName(category);
+    }
+    
     const names = {
         'java': 'Java开发',
         'architecture': '软件架构',
@@ -825,6 +860,49 @@ function getCategoryName(category) {
         'uncategorized': '未分类'
     };
     return names[category] || category;
+}
+
+// Initialize language switcher
+function initLanguageSwitcher() {
+    const switcherWrapper = document.getElementById('languageSwitcherWrapper');
+    const switcher = document.getElementById('languageSwitcher');
+    const dropdown = document.getElementById('langDropdown');
+    
+    if (!switcher || !dropdown) return;
+    
+    // Toggle dropdown
+    switcher.addEventListener('click', function(e) {
+        e.stopPropagation();
+        switcherWrapper.classList.toggle('active');
+    });
+    
+    // Handle language selection
+    dropdown.querySelectorAll('.lang-option').forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            const lang = this.getAttribute('data-lang');
+            
+            if (typeof i18n !== 'undefined' && i18n.setLanguage) {
+                i18n.setLanguage(lang);
+            }
+            
+            // Update active state
+            dropdown.querySelectorAll('.lang-option').forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Close dropdown
+            switcherWrapper.classList.remove('active');
+            
+            // Re-render dynamic content
+            renderPosts();
+            initHeatmap();
+        });
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function() {
+        switcherWrapper.classList.remove('active');
+    });
 }
 
 // Search functionality
@@ -917,12 +995,16 @@ function performSearch(query) {
 // Display search results
 function displaySearchResults(results, query) {
     const searchResults = document.getElementById('searchResults');
+    const isEnglish = typeof i18n !== 'undefined' && i18n.currentLang === 'en';
     
     if (results.length === 0) {
+        const noResultsText = isEnglish ? 
+            `No articles found matching "${escapeHtml(query)}"` : 
+            `未找到包含 "${escapeHtml(query)}" 的文章`;
         searchResults.innerHTML = `
             <div class="search-no-results">
                 <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
-                <p>未找到包含 "${escapeHtml(query)}" 的文章</p>
+                <p>${noResultsText}</p>
             </div>
         `;
         searchResults.classList.add('active');
@@ -933,6 +1015,7 @@ function displaySearchResults(results, query) {
     results.forEach(post => {
         const highlightedTitle = highlightText(post.title, query);
         const highlightedExcerpt = highlightText(post.excerpt.substring(0, 100) + '...', query);
+        const draftLabel = isEnglish ? 'Draft' : '草稿';
         
         html += `
             <div class="search-result-item" onclick="openSearchResult('${post.id}')">
@@ -941,7 +1024,7 @@ function displaySearchResults(results, query) {
                 <div class="search-meta">
                     <span><i class="far fa-calendar"></i> ${formatDate(post.date)}</span>
                     <span><i class="far fa-folder"></i> ${getCategoryName(post.category)}</span>
-                    ${post.status === 'draft' ? '<span style="color: var(--color-yellow);"><i class="fas fa-pencil-alt"></i> 草稿</span>' : ''}
+                    ${post.status === 'draft' ? `<span style="color: var(--color-yellow);"><i class="fas fa-pencil-alt"></i> ${draftLabel}</span>` : ''}
                 </div>
             </div>
         `;
