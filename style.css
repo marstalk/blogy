@@ -72,6 +72,7 @@ header {
 
 .logo span {
     color: var(--color-yellow);
+    white-space: nowrap;
 }
 
 /* Header Search */
@@ -105,6 +106,7 @@ header {
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.3s;
+    white-space: nowrap;
 }
 
 .lang-btn:hover {
@@ -159,6 +161,7 @@ header {
 
 .lang-flag {
     font-size: 1.2rem;
+    white-space: nowrap;
 }
 
 .lang-name {
