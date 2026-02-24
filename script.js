@@ -189,14 +189,8 @@ const ViewStats = {
     
     // Get view count for a specific post
     getViewCount(postId) {
-        // If using Analytics, return 0 (we can't get real-time counts from GA)
-        // The display will show a placeholder or "Tracked by GA"
-        if (this.useAnalytics()) {
-            return 0; // GA doesn't provide real-time individual post counts to client
-        }
-        
-        const stats = this.getAllStats();
-        return stats[postId] || 0;
+        // Show analytics tracking message
+        return null;
     },
     
     // Increment view count for a post
@@ -634,9 +628,9 @@ function createPostCard(post) {
     const readMoreText = (typeof i18n !== 'undefined' && i18n.t) ? i18n.t('read_more') : '阅读全文';
     const draftBadge = post.status === 'draft' ? `<span class="draft-badge">${draftLabel}</span>` : '';
     
-    // Get view count
+    // Get view count - show analytics message if tracking active
     const viewCount = ViewStats.getViewCount(post.id);
-    const viewCountText = formatViewCount(viewCount);
+    const viewCountText = viewCount === null ? '<i class="fas fa-chart-line"></i> Analytics' : formatViewCount(viewCount);
     
     article.innerHTML = `
         <div class="article-image ${post.image}"></div>
@@ -647,7 +641,7 @@ function createPostCard(post) {
                 </div>
                 <div class="article-stats">
                     <span class="view-count" title="阅读次数">
-                        <i class="far fa-eye"></i> ${viewCountText}
+                        ${viewCountText}
                     </span>
                 </div>
                 <div class="article-tags">
@@ -710,13 +704,8 @@ function showPostDetail(postId) {
         i18n.t('reading_time', { time: readingTime }) : 
         `${readingTime} 分钟阅读`;
     
-    // Determine what to show for view count
-    let viewCountDisplay;
-    if (ViewStats.isAnalyticsMode()) {
-        viewCountDisplay = '<i class="fas fa-chart-line"></i> Tracked by GA';
-    } else {
-        viewCountDisplay = `<i class="far fa-eye"></i> ${newViewCount} 次阅读`;
-    }
+    // Show analytics tracking message
+    const viewCountDisplay = '<i class="fas fa-chart-line"></i> Analytics';
     
     content.innerHTML = `
         <div class="post-detail">
@@ -1078,11 +1067,15 @@ function initStats() {
 }
 
 function updateStats() {
-    // Update total views
-    const totalViews = ViewStats.getTotalViews();
+    // Update total views - show analytics message
     const totalViewsEl = document.getElementById('totalViews');
     if (totalViewsEl) {
-        totalViewsEl.textContent = formatViewCount(totalViews);
+        if (ViewStats.useAnalytics()) {
+            totalViewsEl.textContent = 'Analytics';
+        } else {
+            const totalViews = ViewStats.getTotalViews();
+            totalViewsEl.textContent = formatViewCount(totalViews);
+        }
     }
     
     // Update total articles
@@ -1098,6 +1091,11 @@ function updateStats() {
 function renderPopularPosts() {
     const container = document.getElementById('popularPostsList');
     if (!container) return;
+    
+    if (ViewStats.useAnalytics()) {
+        container.innerHTML = '<li style="text-align: center; color: #999; padding: 1rem;"><i class="fas fa-chart-line"></i> Analytics tracking active</li>';
+        return;
+    }
     
     const topPosts = ViewStats.getTopPosts(5);
     
